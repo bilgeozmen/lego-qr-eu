@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Image Viewer</title>
+  <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    #resultImage {
+      margin-top: 20px;
+      max-width: 80%;
+      height: auto;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scan QR Code</h1>
+  <div id="qr-reader" style="width: 300px; margin: auto;"></div>
+
+  <img id="resultImage" src="" alt="Scanned QR Image">
+
+  <script>
+    // Mapping QR code prefixes to image URLs
+    const qrImageMap = {
+      "6576499": "https://jaysbrickblog.com/wp-content/uploads/2025/12/LEGO-71051-Minifigures-Series-28-Frog-Costume-Minifigure-2048x1635.jpg",
+      "6584378": "https://jaysbrickblog.com/wp-content/uploads/2025/12/LEGO-71051-Minifigures-Series-28-Dog-Costume-Minifigure-2048x1644.jpg",
+      "6576500": "https://jaysbrickblog.com/wp-content/uploads/2025/12/LEGO-71051-Minifigures-Series-28-Dog-Costume-Minifigure-2048x1644.jpg"
+    };
+
+    function showImageForCode(code) {
+      const firstPart = code.split(' ')[0];
+      const imageUrl = qrImageMap[firstPart];
+
+      const img = document.getElementById("resultImage");
+      if (imageUrl) {
+        img.src = imageUrl;
+        img.style.display = "block";
+      } else {
+        img.style.display = "none";
+        alert("No image found for this QR code.");
+      }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      console.log(`QR Code detected: ${decodedText}`);
+      showImageForCode(decodedText);
+      html5QrcodeScanner.clear(); // Stop scanning after first successful scan
+    }
+
+    var html5QrcodeScanner = new Html5Qrcode("qr-reader");
+    html5QrcodeScanner.start(
+      { facingMode: "environment" }, // Use rear camera
+      {
+        fps: 10,
+        qrbox: 250
+      },
+      onScanSuccess
+    ).catch(err => {
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
