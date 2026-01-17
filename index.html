@@ -1,130 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Scanner with Camera Switch</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-      padding: 1em;
-      background: #f5f5f5;
-      min-height: 100vh;
-    }
-    #reader {
-      width: 100%;
-      max-width: 400px;
-      margin-top: 1em;
-    }
-    #result {
-      margin-top: 20px;
-      font-size: 1.2em;
-      word-break: break-word;
-      color: #333;
-    }
-    select, button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      font-size: 1em;
-      cursor: pointer;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPhone QR Scanner</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+<style>
+  body { text-align: center; font-family: Arial; }
+  video { width: 90%; max-width: 400px; margin-top: 20px; }
+  canvas { display: none; }
+  img { margin-top: 20px; max-width: 80%; display: none; }
+</style>
 </head>
 <body>
-  <h1>QR Code Scanner</h1>
+<h1>Scan QR Code</h1>
+<video id="video" autoplay></video>
+<canvas id="canvas"></canvas>
+<img id="resultImage" src="" alt="Scanned QR Image">
 
-  <!-- Camera preview -->
-  <div id="reader"></div>
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const img = document.getElementById("resultImage");
 
-  <!-- Camera selection -->
-  <label for="cameraSelect">Choose Camera:</label>
-  <select id="cameraSelect"></select>
+// QR code prefix → image mapping
+const qrImageMap = {
+  "6576499": "https://jaysbrickblog.com/wp-content/uploads/2025/12/LEGO-71051-Minifigures-Series-28-Frog-Costume-Minifigure-2048x1635.jpg",
+  "6584378": "https://jaysbrickblog.com/wp-content/uploads/2025/12/LEGO-71051-Minifigures-Series-28-Dog-Costume-Minifigure-2048x1644.jpg",
+  "6576500": "https://jaysbrickblog.com/wp-content/uploads/2025/12/LEGO-71051-Minifigures-Series-28-Dog-Costume-Minifigure-2048x1644.jpg"
+};
 
-  <!-- Scan result -->
-  <div id="result">Scan a QR code to see the result here.</div>
+// Start the camera
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  .then(stream => {
+    video.srcObject = stream;
+    video.setAttribute("playsinline", true); // iOS safari
+    requestAnimationFrame(tick);
+  })
+  .catch(err => {
+    alert("Camera access denied or not available.");
+    console.error(err);
+  });
 
-  <!-- Restart button -->
-  <button onclick="startScanner()">Restart Scanner</button>
-
-  <script>
-    let html5QrcodeScanner;
-    let cameras = [];
-    let currentCameraId = null;
-
-    function onScanSuccess(decodedText, decodedResult) {
-      document.getElementById('result').innerText = `Result: ${decodedText}`;
-      // Stop scanner if you want single scan:
-      // html5QrcodeScanner.clear();
-    }
-
-    function onScanFailure(error) {
-      // Can ignore scan failures; feed continues
-    }
-
-    function populateCameraList() {
-      const select = document.getElementById('cameraSelect');
-      select.innerHTML = '';
-      cameras.forEach(cam => {
-        const option = document.createElement('option');
-        option.value = cam.id;
-        option.text = cam.label || cam.id;
-        select.appendChild(option);
-      });
-
-      // Listen for changes
-      select.onchange = () => {
-        switchCamera(select.value);
-      };
-    }
-
-    function switchCamera(cameraId) {
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-          startCamera(cameraId);
-        }).catch(err => console.error("Failed to stop scanner:", err));
+// Scan loop
+function tick() {
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+    if (code) {
+      console.log("QR Code detected:", code.data);
+      const firstPart = code.data.split(" ")[0];
+      const imageUrl = qrImageMap[firstPart];
+      if (imageUrl) {
+        img.src = imageUrl;
+        img.style.display = "block";
+      } else {
+        img.style.display = "none";
+        alert("No image found for this QR code.");
       }
+      return; // stop scanning after detection
     }
-
-    function startCamera(cameraId) {
-      currentCameraId = cameraId;
-      html5QrcodeScanner.start(
-        cameraId,
-        { fps: 10, qrbox: 250 },
-        onScanSuccess,
-        onScanFailure
-      ).catch(err => {
-        console.error("Camera start failed:", err);
-        document.getElementById('result').innerText = "Camera access denied or unavailable.";
-      });
-    }
-
-    function startScanner() {
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear();
-      }
-      html5QrcodeScanner = new Html5Qrcode("reader");
-
-      Html5Qrcode.getCameras().then(camList => {
-        cameras = camList;
-        if (cameras.length === 0) {
-          document.getElementById('result').innerText = "No cameras found on this device.";
-          return;
-        }
-        populateCameraList();
-        startCamera(cameras[0].id);
-      }).catch(err => {
-        console.error("Camera list error:", err);
-        document.getElementById('result').innerText = "Unable to access cameras.";
-      });
-    }
-
-    // Start scanner automatically
-    startScanner();
-  </script>
+  }
+  requestAnimationFrame(tick);
+}
+</script>
 </body>
 </html>
