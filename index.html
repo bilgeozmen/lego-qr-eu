@@ -1,54 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Scanner</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            margin: 0;
-        }
-        #reader {
-            width: 90%;
-            max-width: 400px;
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 1.2em;
-            word-break: break-word;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Scanner</title>
+  <!-- Html5 QR Code library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      margin: 0;
+      padding: 1em;
+      height: 100vh;
+      background: #f5f5f5;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 1em;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 1.2em;
+      word-break: break-word;
+      color: #333;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <h1>QR Code Scanner</h1>
-    <div id="reader"></div>
-    <div id="result">Scan a QR code...</div>
+  <h1>QR Code Scanner</h1>
 
-    <script>
-        function onScanSuccess(decodedText, decodedResult) {
-            document.getElementById('result').innerText = `Result: ${decodedText}`;
-            // Optionally stop scanning after first scan
-            html5QrcodeScanner.clear();
-        }
+  <!-- Camera preview -->
+  <div id="reader"></div>
 
-        function onScanFailure(error) {
-            // console.warn(`QR error = ${error}`);
-        }
+  <!-- Scan result -->
+  <div id="result">Scan a QR code to see the result here.</div>
 
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader",
+  <!-- Restart scanning button -->
+  <button onclick="restartScanner()">Restart Scanner</button>
+
+  <script>
+    let html5QrcodeScanner;
+
+    function onScanSuccess(decodedText, decodedResult) {
+      // Show scanned QR code text
+      document.getElementById('result').innerText = `Result: ${decodedText}`;
+      // Stop scanner after first successful scan
+      html5QrcodeScanner.clear();
+    }
+
+    function onScanFailure(error) {
+      // console.log(`Scan failed: ${error}`);
+      // No need to show errors; camera feed keeps running
+    }
+
+    function startScanner() {
+      html5QrcodeScanner = new Html5Qrcode("reader");
+
+      Html5Qrcode.getCameras().then(cameras => {
+        if (cameras && cameras.length) {
+          let cameraId = cameras[0].id; // Use first available camera
+          html5QrcodeScanner.start(
+            cameraId,
             { fps: 10, qrbox: 250 },
-            /* verbose= */ false
-        );
+            onScanSuccess,
+            onScanFailure
+          ).catch(err => {
+            console.error("Camera start failed:", err);
+            document.getElementById('result').innerText = "Camera access denied or unavailable.";
+          });
+        } else {
+          document.getElementById('result').innerText = "No camera found on this device.";
+        }
+      }).catch(err => {
+        console.error("Camera list error:", err);
+        document.getElementById('result').innerText = "Unable to access cameras.";
+      });
+    }
 
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-    </script>
+    function restartScanner() {
+      startScanner();
+      document.getElementById('result').innerText = "Scan a QR code to see the result here.";
+    }
+
+    // Start scanner immediately on page load
+    startScanner();
+  </script>
 </body>
 </html>
